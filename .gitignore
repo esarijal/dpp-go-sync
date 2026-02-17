@@ -1,0 +1,19 @@
+# Environment
+.env
+
+# Firebase credentials
+serviceAccountKey.json
+
+# Go binary
+go-sync
+go-sync.exe
+
+# Vendor (optional, uncomment if you don't want to commit vendor)
+# vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+vendor
