@@ -31,9 +31,9 @@ func SaveToPostgres(devices []FCMDevice, config DzikirConfig) error {
 			device_id, fcm_token, tz,
 			dzikir_morning_time, dzikir_evening_time,
 			last_sent_morning, last_sent_evening,
-			shard, created_at, updated_at
+			shard, is_active, created_at, updated_at
 		) VALUES (
-			$1,$2,$3,$4,$5,$6,$7,$8,$9,$10
+			$1,$2,$3,$4,$5,$6,$7,$8,true,$9,$10
 		)
 		ON CONFLICT (device_id) DO UPDATE SET
 			fcm_token = EXCLUDED.fcm_token,
@@ -43,6 +43,7 @@ func SaveToPostgres(devices []FCMDevice, config DzikirConfig) error {
 			last_sent_morning = EXCLUDED.last_sent_morning,
 			last_sent_evening = EXCLUDED.last_sent_evening,
 			shard = EXCLUDED.shard,
+			is_active = CASE WHEN devices.fcm_token != EXCLUDED.fcm_token THEN true ELSE devices.is_active END,
 			updated_at = EXCLUDED.updated_at;
 	`
 

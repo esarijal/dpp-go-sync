@@ -11,6 +11,7 @@ type FCMDevice struct {
 	LastSentMorning   *time.Time
 	LastSentEvening   *time.Time
 	Shard             int
+	IsActive          bool
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 }
