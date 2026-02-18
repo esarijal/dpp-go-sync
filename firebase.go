@@ -3,60 +3,35 @@ package main
 import (
 	"context"
 	"log"
-	"os"
 	"time"
 
 	"cloud.google.com/go/firestore"
-	"google.golang.org/api/option"
 )
 
-func FetchFromFirestore(since time.Time) ([]FCMDevice, DzikirConfig, error) {
-	ctx := context.Background()
-
-	sa := option.WithCredentialsFile(os.Getenv("FIREBASE_CREDENTIALS"))
-	client, err := firestore.NewClient(ctx, os.Getenv("FIREBASE_PROJECT_ID"), sa)
-	if err != nil {
-		return nil, DzikirConfig{}, err
-	}
-	defer client.Close()
-
-	// Fetch fcm_devices (incremental if since is set)
-	devices := []FCMDevice{}
-
-	if since.IsZero() {
-		log.Println("📥 Mode: FULL SYNC (first run)")
-		snap, err := client.Collection("fcm_devices").Documents(ctx).GetAll()
-		if err != nil {
-			return nil, DzikirConfig{}, err
-		}
-		for _, doc := range snap {
-			devices = append(devices, parseDevice(doc))
-		}
-	} else {
-		log.Printf("📥 Mode: INCREMENTAL SYNC (since %s)", since.Format(time.RFC3339))
-		snap, err := client.Collection("fcm_devices").Where("updatedAt", ">", since).Documents(ctx).GetAll()
-		if err != nil {
-			return nil, DzikirConfig{}, err
-		}
-		for _, doc := range snap {
-			devices = append(devices, parseDevice(doc))
-		}
-	}
-
-	// Fetch dzikir_config/general (always 1 read)
+func GetDzikirConfig(ctx context.Context, client *firestore.Client) (DzikirConfig, error) {
 	configDoc, err := client.Doc("dzikir_config/general").Get(ctx)
 	if err != nil {
-		return nil, DzikirConfig{}, err
+		return DzikirConfig{}, err
 	}
-	config := DzikirConfig{
+	return DzikirConfig{
 		MorningIndex: getInt(configDoc.Data()["morningIndex"]),
 		EveningIndex: getInt(configDoc.Data()["eveningIndex"]),
-	}
-
-	return devices, config, nil
+	}, nil
 }
 
-func parseDevice(doc *firestore.DocumentSnapshot) FCMDevice {
+func GetDeviceIterator(ctx context.Context, client *firestore.Client, since time.Time) *firestore.DocumentIterator {
+	if since.IsZero() {
+		log.Println("📥 Mode: FULL SYNC (first run)")
+		// Return iterator for all docs
+		return client.Collection("fcm_devices").Documents(ctx)
+	} else {
+		log.Printf("📥 Mode: INCREMENTAL SYNC (since %s)", since.Format(time.RFC3339))
+		// Return iterator for updated docs
+		return client.Collection("fcm_devices").Where("updatedAt", ">", since).Documents(ctx)
+	}
+}
+
+func ParseDevice(doc *firestore.DocumentSnapshot) FCMDevice {
 	data := doc.Data()
 	createdAt, _ := data["createdAt"].(time.Time)
 	updatedAt, _ := data["updatedAt"].(time.Time)
